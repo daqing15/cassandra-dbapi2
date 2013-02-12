@@ -18,7 +18,7 @@
 from Queue import Queue, Empty
 from threading import Thread
 from time import sleep
-from cql.connection import Connection
+from cql.connection import connect
 
 __all__ = ['ConnectionPool']
 
@@ -38,18 +38,23 @@ class ConnectionPool(object):
     >>> pool.return_connection(conn)
     """
     def __init__(self, hostname, port=9160, keyspace=None, username=None,
-                 password=None, decoder=None, max_conns=25, max_idle=5,
-                 eviction_delay=10000):
+                 password=None, cql_version=None, native=None,
+                 compression=None, consistency_level="ONE", transport=None,
+                 max_conns=25, max_idle=5, eviction_delay=10000):
         self.hostname = hostname
         self.port = port
         self.keyspace = keyspace
         self.username = username
         self.password = password
-        self.decoder = decoder
+        self.cql_version = cql_version
+        self.native = native
+        self.compression = compression
+        self.consistency_level=consistency_level
+        self.transport = transport
         self.max_conns = max_conns
         self.max_idle = max_idle
         self.eviction_delay = eviction_delay
-        
+
         self.connections = Queue()
         self.connections.put(self.__create_connection())
         self.eviction = Eviction(self.connections,
@@ -57,12 +62,17 @@ class ConnectionPool(object):
                                  self.eviction_delay)
     
     def __create_connection(self):
-        return Connection(self.hostname,
+        return connect(self.hostname,
                           port=self.port,
                           keyspace=self.keyspace,
-                          username=self.username,
+                          user=self.username,
                           password=self.password,
-                          decoder=self.decoder)
+                          cql_version=self.cql_version,
+                          native=self.native,
+                          compression=self.compression,
+                          consistency_level=self.consistency_level,
+                          transport=self.transport,
+                          )
         
     def borrow_connection(self):
         try:
